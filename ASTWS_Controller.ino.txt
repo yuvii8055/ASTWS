@@ -1,0 +1,77 @@
+/*
+ * Automatic Sunlight Tracking Window System (ASTWS)
+ * Dual-axis hybrid tracking (Reactive LDR + Predictive RTC)
+ */
+
+// LDR Sensor Array Pins
+const int ldrTL = A0; // Top Left
+const int ldrTR = A1; // Top Right
+const int ldrBL = A2; // Bottom Left
+const int ldrBR = A3; // Bottom Right
+
+// A4988 Stepper Pins
+const int dirAzimuth = 2;
+const int stepAzimuth = 3;
+const int dirElevation = 4;
+const int stepElevation = 5;
+
+// System Configurations
+const int trackingThreshold = 50; 
+const int cloudyThreshold = 200; // Trigger for RTC predictive mode
+
+void setup() {
+  Serial.begin(9600);
+  
+  pinMode(dirAzimuth, OUTPUT);
+  pinMode(stepAzimuth, OUTPUT);
+  pinMode(dirElevation, OUTPUT);
+  pinMode(stepElevation, OUTPUT);
+  
+  // Initialize RTC and Limit Switches here
+}
+
+void loop() {
+  // Read sensor array
+  int tl = analogRead(ldrTL);
+  int tr = analogRead(ldrTR);
+  int bl = analogRead(ldrBL);
+  int br = analogRead(ldrBR);
+
+  int avgTop = (tl + tr) / 2;
+  int avgBot = (bl + br) / 2;
+  int avgLeft = (tl + bl) / 2;
+  int avgRight = (tr + br) / 2;
+  int totalIntensity = (tl + tr + bl + br) / 4;
+
+  // Hybrid Logic: Check for cloudy conditions
+  if (totalIntensity < cloudyThreshold) {
+    executePredictiveTracking(); // Fallback to RTC ephemeris math
+    delay(5000);
+    return;
+  }
+
+  // Elevation (Tilt) Adjustment
+  if (abs(avgTop - avgBot) > trackingThreshold) {
+    digitalWrite(dirElevation, (avgTop > avgBot) ? HIGH : LOW);
+    pulseMotor(stepElevation);
+  }
+
+  // Azimuth (Pan) Adjustment
+  if (abs(avgLeft - avgRight) > trackingThreshold) {
+    digitalWrite(dirAzimuth, (avgLeft > avgRight) ? HIGH : LOW);
+    pulseMotor(stepAzimuth);
+  }
+
+  delay(100); 
+}
+
+void pulseMotor(int stepPin) {
+  digitalWrite(stepPin, HIGH);
+  delayMicroseconds(1000);
+  digitalWrite(stepPin, LOW);
+  delayMicroseconds(1000);
+}
+
+void executePredictiveTracking() {
+  // Insert time-based sun position calculations using RTC data here
+}
